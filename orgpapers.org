@@ -881,14 +881,26 @@ Code block [[readdata-code]] is an example of such a code block. Note
   ,#+END_SRC
 #+END_SRC
 
-** Code blocks that produce results in the form of a table
+** Code blocks that produce results in the form of an Org-mode table
 
-Most of code blocks in my writing fall in this category. The code
-block may use data and functions made available by previous code
-blocks, read some new data and may load some new functions. The code
-block does some statistical processing. The last command of the code
-block produces an object (for example, a data frame) that is included
-in the document as a Table.
+The output of a lot of R code I write is presented in some kind of table.
+
+There are two approaches for producing formatted, publication-ready tables.
+
+1. We get R to produce bare tables, add Org-mode markup to those, and
+   get Org-mode mode to export these into nice looking LaTeX
+   tables.
+
+2. Alternatively, we can get R to produce nicely formatted
+   LaTeX tables, and let Org just export the LaTeX code as it is.
+
+I will discuss the first approach in this section.
+
+The code block may use data and functions made available by previous
+code blocks, read some new data and may load some new functions. The
+code block does some statistical processing. The last command of the
+code block produces an object (for example, a data frame) that is
+included in the document as a Table.
 
 For example, the code block [[r-code-table]] below uses mydata1 read in
 the previous code block, reads a new dataset, and processes them to
@@ -934,6 +946,91 @@ block and the result of the code block have separate names.
 
 Like any Org table, you can cross-refer to this table using
 ~[[bmi-table-output]]~.
+
+Section [[#tableformatting]] discusses how to format tables for LaTeX
+export. All that can be done on tables created by source code blocks.
+
+** Code blocks that produce a formatted LaTeX table
+
+An alternative approach would be to use various R packages designed
+for producing formatted tables. R has excellent libraries for
+producing tables formatted for LaTeX, html, RTF and docx
+exports. Particularly noteworthy are [[https://cran.r-project.org/web/packages/xtable/index.html][xtable]], [[https://gt.rstudio.com/articles/gt.html][gt]]/[[https://jthomasmock.github.io/gtExtras/][gtExtras]], [[https://haozhu233.github.io/kableExtra/][kableExtra]],
+and [[https://github.com/turbanisch/tabularray][tabularray]] packages. It is beyond the scope of the present
+document to describe each of these. Of these, [[https://cran.r-project.org/web/packages/xtable/index.html][xtable]] is most versatile
+but complex. [[https://cran.r-project.org/web/packages/xtable/index.html][xtable]] does not work out of the box with threeparttable
+for producing table notes. [[https://gt.rstudio.com/articles/gt.html][gt]]/[[https://jthomasmock.github.io/gtExtras/][gtExtras]] are excellent but are mainly
+aim at producing html tables.  [[https://haozhu233.github.io/kableExtra/][kableExtra]] produces tables that work
+with tabular, longtable and tabu LaTeX environments to produce tables,
+while [[https://github.com/turbanisch/tabularray][tabularray]] produces output for tabularray LaTeX environment.
+[[https://haozhu233.github.io/kableExtra/][kableExtra]] works well with threeparttable.
+
+The code block [[r-code-kable-formatted]] shows code that uses kableExtra
+to produce a formatted LaTeX table. Similarly, code block
+[[r-code-tabularray-formatted]] shows code that produces a table formatted
+for tabularray LaTeX package.
+
+A disadvantage of this approach would be that the results of the code
+block will not contain an Org-mode table, which is a visually
+appealing and functionally useful representation while working in
+Org-mode.
+
+One could, of course, use a combination of two approaches by creating
+two separate code blocks: the first producing an Org-mode table that
+is not meant for export (~:exports none~), and another that reads the
+Org-mode table, and produces LaTeX code meant for export.
+
+#+name: r-code-kable-formatted
+#+BEGIN_SRC org
+ ,#+NAME: code1
+ ,#+BEGIN_SRC R :results value verbatim latex :exports results
+  library(kableExtra)
+  dt <- mtcars[1:5, 1:4]
+
+  kbl(dt, format="latex", booktabs = T, caption = "Demo Table") |>
+    kable_styling(latex_options = c("striped", "hold_position"),
+                  full_width = F) |>
+    add_header_above(c(" ", "Group 1" = 2, "Group 2[note]" = 2)) |>
+    add_header_above(c(" ", "Group 3" = 4)) |>
+      footnote(c("1. table footnote","2. another footnote"))->t
+ ,#+end_src
+#+END_SRC
+
+#+name: r-code-tabularray-formatted
+#+BEGIN_SRC org
+  ,#+NAME: code2
+  ,#+BEGIN_SRC R :results value verbatim latex :exports results
+    library(tabularray)
+    library(dplyr)
+    df <- starwars |>
+    filter(homeworld == "Tatooine") |>
+    select(name, height, mass, sex, birth_year) |>
+    arrange(desc(birth_year))
+    df |>
+    mutate(sex = stringr::str_to_title(sex)) |>
+    group_by(sex) |>
+    tblr(type = "float", caption = "Starwars Creatures from Tatooine") |>
+    set_source_notes(
+      Note = "Entry C3PO altered to test characters that have a special meaning in LaTeX.",
+      Source = "R package \\texttt{dplyr}"
+    ) |>
+    set_alignment(height:birth_year ~ "X[r]") |>
+    set_column_labels(
+      name = "",
+      height = "Height",
+      mass = "Mass",
+      birth_year = "Birth Year"
+    ) |>
+    set_theme(row_group_style = "panel") |>
+    set_interface(width = "0.7\\linewidth") |>
+    set_column_spanner(
+      c(height, mass) ~ "Group 1",
+      birth_year ~ "Group 2"
+    ) |>
+    set_column_spanner(!name ~ "All my vars")->t
+    t
+  ,#+end_src
+#+END_SRC
 
 ** Code blocks that produce a graph to be included in the document
 
@@ -1261,6 +1358,9 @@ Built-in exporters can be called in Org using ~C-c C-e~ or ~M-x
 org-export-dispatch~.
 
 ** Formatting tables for LaTeX/PDF export
+:PROPERTIES:
+:CUSTOM_ID: tableformatting
+:END:
 
 There are many LaTeX packages that can be used to format tables. They
 provide different options for formatting tables, and using them
